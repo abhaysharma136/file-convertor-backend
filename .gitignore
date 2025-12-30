@@ -1,0 +1,7 @@
+# Virtual environment
+/file-converter-env
+.env
+
+# Python cache
+__pycache__/
+*.pyc
