@@ -11,37 +11,50 @@ def generate_rule_based_suggestions(extracted_text, ats_result):
     # SCORE-BASED CONTEXT
     # ----------------------------
     if score < 50:
-        level = "critical"
+        base_severity = "critical"
     elif score < 70:
-        level = "moderate"
+        base_severity = "moderate"
     else:
-        level = "minor"
+        base_severity = "minor"
 
     # ----------------------------
     # SECTION STRUCTURE
     # ----------------------------
     if breakdown["sections"] < 30:
         if not sections.get("skills"):
-            suggestions.append(
-                "Add a clear Technical Skills section to improve ATS readability."
-            )
+            suggestions.append({
+                "title": "Missing Technical Skills Section",
+                "description": (
+                    "Add a clear Technical Skills section listing relevant tools and technologies "
+                    "to improve ATS parsing and keyword matching."
+                ),
+                "severity": "critical",
+                "category": "sections"
+            })
+
         if not sections.get("projects"):
-            suggestions.append(
-                "Include a Projects section to demonstrate hands-on experience."
-            )
+            suggestions.append({
+                "title": "Projects Section Not Found",
+                "description": (
+                    "Include a Projects section to showcase hands-on experience and real-world implementations."
+                ),
+                "severity": "moderate",
+                "category": "sections"
+            })
 
     # ----------------------------
     # EXPERIENCE QUALITY
     # ----------------------------
     if breakdown["experience"] < 20:
-        if level in ("critical", "moderate"):
-            suggestions.append(
-                "Rewrite experience bullets using action verbs and measurable impact (e.g., scale, performance, users)."
-            )
-        else:
-            suggestions.append(
-                "Polish experience bullets by adding outcomes or metrics."
-            )
+        suggestions.append({
+            "title": "Weak Experience Bullet Points",
+            "description": (
+                "Rewrite experience bullets using strong action verbs and measurable impact "
+                "(e.g., performance gains, scale, users, revenue)."
+            ),
+            "severity": base_severity,
+            "category": "experience"
+        })
 
         exp = sections.get("experience", "")
         if exp:
@@ -53,9 +66,14 @@ def generate_rule_based_suggestions(extracted_text, ats_result):
     # RESUME LENGTH
     # ----------------------------
     if breakdown["length"] < 15:
-        suggestions.append(
-            "Expand resume content slightly to better showcase achievements and responsibilities."
-        )
+        suggestions.append({
+            "title": "Resume Length Is Suboptimal",
+            "description": (
+                "Expand resume content slightly to better highlight responsibilities, achievements, and impact."
+            ),
+            "severity": "minor",
+            "category": "length"
+        })
 
     # ----------------------------
     # SKILL KEYWORDS
@@ -72,11 +90,10 @@ def generate_rule_based_suggestions(extracted_text, ats_result):
             missing_keywords.append(skill)
 
     # ----------------------------
-    # RETURN TRIMMED OUTPUT
+    # RETURN STRUCTURED OUTPUT
     # ----------------------------
     return {
         "suggestions": suggestions[:5],
         "rewritten_bullets": rewritten_bullets[:2],
-        "missing_keywords": missing_keywords[:5],
-        "severity": level
+        "missing_keywords": missing_keywords[:5]
     }
