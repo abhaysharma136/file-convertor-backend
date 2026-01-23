@@ -1,17 +1,31 @@
 from fastapi import APIRouter
-from fastapi import  UploadFile, File, BackgroundTasks, Form
+from fastapi import  UploadFile, File, BackgroundTasks, Form, Request, HTTPException
 from jobs.store import jobs,create_job
 from datetime import datetime
 from core.config import UPLOAD_DIR
 import os
 from jobs.workers import run_resume_jd_match
+from services.rate_limiter import check_rate_limit
+from services.credits import authorize_usage
+from utils.security import hash_ip
+
 router = APIRouter(prefix="/jd/match", tags=["Match"])
 @router.post("")
 async def match_resume(
+    request:Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     job_description: str = Form(...)
 ):
+    ip_hash = hash_ip(request.client.host)
+
+    auth = authorize_usage(ip_hash, "jd_match")
+
+    if not auth["allowed"]:
+        raise HTTPException(
+            status_code=429,
+            detail="Daily limit reached. Upgrade to continue."
+        )
     job_id = create_job("resume_jd_match")
     jobs[job_id]["jd_text"] = job_description
 
@@ -29,7 +43,8 @@ async def match_resume(
 
     return {
         "job_id": job_id,
-        "status": "pending"
+        "status": "pending",
+        "usage":auth
     }
 
 

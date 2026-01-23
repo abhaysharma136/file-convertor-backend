@@ -2,16 +2,28 @@
 from fastapi import APIRouter
 from jobs.store import jobs, create_job
 import os
-from fastapi import  UploadFile, File, BackgroundTasks, Form
+from fastapi import  UploadFile, File, BackgroundTasks, Form, Request, HTTPException
 from datetime import datetime
 from core.config import UPLOAD_DIR, OUTPUT_DIR
 from jobs.workers import run_conversion
 from fastapi.responses import FileResponse
-
+from services.rate_limiter import check_rate_limit
+from services.credits import authorize_usage
+from utils.security import hash_ip
 router = APIRouter(prefix="/convert", tags=["Conversion"])
 
 @router.post("")
-async def convert_file(background_tasks:BackgroundTasks, file: UploadFile = File(...),target_format: str = Form(...)):
+async def convert_file(request:Request,background_tasks:BackgroundTasks, file: UploadFile = File(...),target_format: str = Form(...)):
+    ip_hash = hash_ip(request.client.host)
+
+    auth = authorize_usage(ip_hash, "converter")
+
+    if not auth["allowed"]:
+        raise HTTPException(
+            status_code=429,
+            detail="Daily limit reached. Upgrade to continue."
+        )
+    
     # Read the file content
     contents = await file.read()
     job_id = create_job("conversion")
@@ -47,7 +59,8 @@ async def convert_file(background_tasks:BackgroundTasks, file: UploadFile = File
 
     return {
         "job_id": job_id,
-        "status": "pending"
+        "status": "pending",
+        "usage":auth
     }
 
 

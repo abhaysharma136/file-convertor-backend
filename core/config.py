@@ -11,3 +11,20 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 JOB_TTL_SECONDS = 30 * 60  # 30 minutes
+
+
+# Credits pricing config
+
+FREE_DAILY_LIMITS = {
+    "resume_analyzer": 1,
+    "jd_match": 1,
+    "converter": 1
+}
+
+CREDIT_COST = {
+    "resume_analyzer": 1,
+    "jd_match": 1,
+    "converter": 0
+}
+
+MAX_AI_TOKENS_PER_JOB = 2500
