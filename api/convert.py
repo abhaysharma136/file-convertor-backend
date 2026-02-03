@@ -13,10 +13,11 @@ from utils.security import hash_ip
 router = APIRouter(prefix="/convert", tags=["Conversion"])
 
 @router.post("")
-async def convert_file(request:Request,background_tasks:BackgroundTasks, file: UploadFile = File(...),target_format: str = Form(...)):
+async def convert_file(request:Request,background_tasks:BackgroundTasks, file: UploadFile = File(...),target_format: str = Form(...),useCredit: bool = Form(False)):
     ip_hash = hash_ip(request.client.host)
 
-    auth = authorize_usage(ip_hash, "converter")
+    auth = authorize_usage(ip_hash, "converter", use_credit=useCredit,
+            allow_credit_fallback=False)
 
     if not auth["allowed"]:
         raise HTTPException(

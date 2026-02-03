@@ -6,11 +6,14 @@ from api.resume import router as resume_router
 from api.match import router as match_router
 from api.status import router as status_router
 from api.usage import router as usage_router
+from api.admin import router as admin_router
 from core.middleware import logging_middleware
 
 
 app = FastAPI()
-start_cleanup_worker()
+@app.on_event("startup")
+def start_background_workers():
+    start_cleanup_worker()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],  # or ["*"] for dev
@@ -25,3 +28,4 @@ app.include_router(resume_router)
 app.include_router(match_router)
 app.include_router(status_router)
 app.include_router(usage_router)
+app.include_router(admin_router)

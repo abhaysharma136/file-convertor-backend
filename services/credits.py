@@ -35,9 +35,24 @@ def consume_credit(ip_hash: str, service: str):
     return True
 
 
-def authorize_usage(ip_hash: str, service: str):
+def authorize_usage(ip_hash: str, service: str, *, use_credit: bool, allow_credit_fallback: bool = False):
     remaining_free = get_remaining_free(ip_hash, service)
 
+    # 🔵 USER EXPLICITLY WANTS CREDIT
+    if use_credit:
+        if get_credits(ip_hash) >= CREDIT_COST[service]:
+            return {
+                "allowed": True,
+                "mode": "credit",
+                "remaining_free": remaining_free
+            }
+        return {
+            "allowed": False,
+            "error": "insufficient_credits",
+            "remaining_free": remaining_free
+        }
+
+    # 🟢 USER WANTS FREE
     if remaining_free > 0:
         consume_free(ip_hash, service)
         return {
@@ -46,15 +61,8 @@ def authorize_usage(ip_hash: str, service: str):
             "remaining_free": remaining_free - 1
         }
 
-    # ⛔ Converter has NO paid fallback
-    if CREDIT_COST[service] == 0:
-        return {
-            "allowed": False,
-            "error": "quota_exceeded",
-            "remaining_free": 0
-        }
-
-    if consume_credit(ip_hash, service):
+    # 🔁 Optional fallback to credit
+    if allow_credit_fallback and get_credits(ip_hash) >= CREDIT_COST[service]:
         return {
             "allowed": True,
             "mode": "credit",
@@ -63,6 +71,6 @@ def authorize_usage(ip_hash: str, service: str):
 
     return {
         "allowed": False,
-        "error": "quota_exceeded",
+        "error": "quota_exhausted",
         "remaining_free": 0
     }

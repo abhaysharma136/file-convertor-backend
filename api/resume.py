@@ -1,12 +1,12 @@
 from fastapi import APIRouter
-from fastapi import  UploadFile, File, BackgroundTasks, Request, HTTPException
+from fastapi import  UploadFile, File, BackgroundTasks, Request, HTTPException, Form
 from core.config import UPLOAD_DIR
 from jobs.workers import run_resume_analysis
 from jobs.store import create_job, jobs
 import os
 from datetime import datetime
 from services.rate_limiter import check_rate_limit
-from services.credits import authorize_usage
+from services.credits import authorize_usage,get_credits,get_remaining_free,CREDIT_COST
 from utils.security import hash_ip
 router = APIRouter(prefix="/resume", tags=["Resume"])
 
@@ -15,19 +15,48 @@ async def analyze_resume(
     request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-):# Rate limit first
+    useCredit: bool = Form(False),
+):
     ip_hash = hash_ip(request.client.host)
 
-    auth = authorize_usage(ip_hash, "resume_analyzer")
+    # ---------- Authorization ----------
+    if useCredit:
+        # User explicitly wants AI
+        if get_credits(ip_hash) < CREDIT_COST["resume_analyzer"]:
+            raise HTTPException(
+                status_code=402,
+                detail="Not enough credits. Please upgrade."
+            )
 
-    if not auth["allowed"]:
-        raise HTTPException(
-            status_code=429,
-            detail="Daily limit reached. Upgrade to continue."
+        auth = {
+            "allowed": True,
+            "mode": "credit",
+            "remaining_free": get_remaining_free(ip_hash, "resume_analyzer")
+        }
+    else:
+        # User wants free quota
+        auth = authorize_usage(
+            ip_hash,
+            "resume_analyzer",
+            use_credit=useCredit,
+            allow_credit_fallback=False
         )
 
+
+        if not auth["allowed"]:
+            raise HTTPException(
+                status_code=429,
+                detail="Daily free limit reached."
+            )
+
+    # ---------- Create job ----------
     job_id = create_job("resume_analysis")
 
+    jobs[job_id]["usage_mode"] = auth["mode"]      # free | credit
+    jobs[job_id]["remaining_free"] = auth["remaining_free"]
+    jobs[job_id]["ip_hash"] = ip_hash
+
+    # ---------- Save file ----------
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     input_path = os.path.join(
         UPLOAD_DIR, f"{job_id}_{timestamp}_{file.filename}"
@@ -38,12 +67,13 @@ async def analyze_resume(
 
     jobs[job_id]["input_path"] = input_path
 
+    # ---------- Background processing ----------
     background_tasks.add_task(run_resume_analysis, job_id)
 
     return {
         "job_id": job_id,
         "status": "pending",
-        "usage":auth
+        "usage": auth
     }
 
 @router.get("/result/{job_id}")
