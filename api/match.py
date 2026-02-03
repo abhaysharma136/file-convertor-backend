@@ -6,7 +6,7 @@ from core.config import UPLOAD_DIR
 import os
 from jobs.workers import run_resume_jd_match
 from services.rate_limiter import check_rate_limit
-from services.credits import authorize_usage
+from services.credits import authorize_usage,get_credits,CREDIT_COST,get_remaining_free
 from utils.security import hash_ip
 
 router = APIRouter(prefix="/jd/match", tags=["Match"])
@@ -15,19 +15,39 @@ async def match_resume(
     request:Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    job_description: str = Form(...)
+    job_description: str = Form(...),
+    useCredit: bool = Form(False),
 ):
     ip_hash = hash_ip(request.client.host)
+    # ---------- Authorization ----------
+    if useCredit:
+        # User explicitly wants AI
+        if get_credits(ip_hash) < CREDIT_COST["jd_match"]:
+            raise HTTPException(
+                status_code=402,
+                detail="Not enough credits. Please upgrade."
+            )
 
-    auth = authorize_usage(ip_hash, "jd_match")
+        auth = {
+            "allowed": True,
+            "mode": "credit",
+            "remaining_free": get_remaining_free(ip_hash, "jd_match")
+        }
+    else:
+        auth = authorize_usage(ip_hash, "jd_match", use_credit=useCredit, allow_credit_fallback=False)
+    
 
-    if not auth["allowed"]:
-        raise HTTPException(
-            status_code=429,
-            detail="Daily limit reached. Upgrade to continue."
-        )
+        if not auth["allowed"]:
+            raise HTTPException(
+                status_code=429,
+                detail="Daily limit reached. Upgrade to continue."
+            )
+        
     job_id = create_job("resume_jd_match")
     jobs[job_id]["jd_text"] = job_description
+    jobs[job_id]["usage_mode"] = auth["mode"]      # free | credit
+    jobs[job_id]["remaining_free"] = auth["remaining_free"]
+    jobs[job_id]["ip_hash"] = ip_hash
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     input_path = os.path.join(

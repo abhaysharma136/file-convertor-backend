@@ -27,4 +27,12 @@ CREDIT_COST = {
     "converter": 0
 }
 
+# AI Guardrails
+
 MAX_AI_TOKENS_PER_JOB = 2500
+MAX_AI_CALLS_PER_DAY = 500
+
+AI_ENABLED = {
+    "resume_analyzer": True,
+    "jd_match": False  # start false
+}

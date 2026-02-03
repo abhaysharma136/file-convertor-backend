@@ -29,6 +29,7 @@ def cleanup_expired_jobs():
 def start_cleanup_worker():
     def run():
         while True:
+            print("🧹 cleanup tick")
             cleanup_expired_jobs()
             time.sleep(300)
 
