@@ -16,7 +16,7 @@ def start_background_workers():
     start_cleanup_worker()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # or ["*"] for dev
+    allow_origins=["http://localhost:5173","https://applyra.in","https://www.applyra.in"],  # or ["*"] for dev
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

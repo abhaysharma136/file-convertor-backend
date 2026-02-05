@@ -1,5 +1,9 @@
 import os
+from dotenv import load_dotenv
 
+
+load_dotenv()
+ENV = os.getenv("ENV", "development")
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # print("Base_dir", BASE_DIR)
 STORAGE_DIR = os.path.join(BASE_DIR, "storage")
@@ -29,10 +33,20 @@ CREDIT_COST = {
 
 # AI Guardrails
 
-MAX_AI_TOKENS_PER_JOB = 2500
-MAX_AI_CALLS_PER_DAY = 500
+# ---- AI Guardrails ----
+APPLYRA_AI_GLOBAL_ENABLED = os.getenv(
+    "APPLYRA_AI_GLOBAL_ENABLED", "true"
+).lower() == "true"
 
+MAX_AI_TOKENS_PER_JOB = int(
+    os.getenv("MAX_AI_TOKENS_PER_JOB",2500)
+)
+
+MAX_AI_CALLS_PER_DAY = int(
+    os.getenv("MAX_AI_CALLS_PER_DAY", "500")
+)
+print("ENV", ENV)
 AI_ENABLED = {
-    "resume_analyzer": True,
-    "jd_match": False  # start false
+    "resume_analyzer": os.getenv("AI_RESUME_ANALYZER_ENABLED", "true")=="true",
+    "jd_match": os.getenv("AI_JD_MATCH_ENABLED", "false")=="true"  # start false
 }

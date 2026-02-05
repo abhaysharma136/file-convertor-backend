@@ -10,7 +10,7 @@ import time
 from core.logger import log_event
 from services.ai_utils import estimate_tokens
 import json
-from core.config import AI_ENABLED, MAX_AI_TOKENS_PER_JOB
+from core.config import AI_ENABLED, MAX_AI_TOKENS_PER_JOB,APPLYRA_AI_GLOBAL_ENABLED
 from core.ai_budget import can_use_ai,register_ai_call
 from services.credits import consume_credit
 def run_resume_analysis(job_id: str):
@@ -57,7 +57,7 @@ def run_resume_analysis(job_id: str):
             usage_mode == "credit"
             and AI_ENABLED.get("resume_analyzer")
             and estimated_tokens <= MAX_AI_TOKENS_PER_JOB
-            and can_use_ai()
+            and can_use_ai() and APPLYRA_AI_GLOBAL_ENABLED
         )
 
         log_event({
@@ -182,7 +182,7 @@ def run_resume_jd_match(job_id: str):
             usage_mode == "credit"
             and AI_ENABLED.get("jd_match", False)
             and estimated_tokens <= MAX_AI_TOKENS_PER_JOB
-            and can_use_ai()
+            and can_use_ai() and APPLYRA_AI_GLOBAL_ENABLED
         )
 
         log_event({

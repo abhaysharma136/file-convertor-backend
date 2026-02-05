@@ -1,7 +1,7 @@
 # Virtual environment
 /file-converter-env
 .env
-
+.env.production
 # Python cache
 __pycache__/
 *.pyc
