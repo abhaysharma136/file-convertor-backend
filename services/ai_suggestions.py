@@ -6,10 +6,17 @@ from openai import OpenAI
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-if not OPENAI_API_KEY:
-    raise RuntimeError("OPENAI_API_KEY not set")
-client = OpenAI(api_key=OPENAI_API_KEY)
-
+# if not OPENAI_API_KEY:
+#     raise RuntimeError("OPENAI_API_KEY not set")
+# client = OpenAI(api_key=OPENAI_API_KEY)
+_client = None
+def get_openai_client():
+    global _client
+    if _client is None:
+        if not OPENAI_API_KEY:
+            raise RuntimeError("OpenAI not configured")
+        _client = OpenAI(api_key=OPENAI_API_KEY)
+    return _client
 def build_ai_prompt(extracted_text, ats_result):
     return f"""
 You are an expert technical resume reviewer.
@@ -37,6 +44,7 @@ Output JSON ONLY in this format:
 """
 
 def generate_ai_suggestions(extracted_text, ats_result):
+    client = get_openai_client()
     prompt = build_ai_prompt(extracted_text, ats_result)
 
     response = client.chat.completions.create(
