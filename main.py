@@ -8,7 +8,8 @@ from api.status import router as status_router
 from api.usage import router as usage_router
 from api.admin import router as admin_router
 from core.middleware import logging_middleware
-
+import os
+from datetime import datetime
 
 app = FastAPI()
 @app.on_event("startup")
@@ -29,3 +30,19 @@ app.include_router(match_router)
 app.include_router(status_router)
 app.include_router(usage_router)
 app.include_router(admin_router)
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "ok",
+        "service": "applyra-backend",
+        "environment": os.getenv("ENV", "unknown"),
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+@app.get("/")
+def root():
+    return {
+        "message": "Applyra API is running",
+        "docs": "/docs"
+    }
