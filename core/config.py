@@ -20,9 +20,9 @@ JOB_TTL_SECONDS = 30 * 60  # 30 minutes
 # Credits pricing config
 
 FREE_DAILY_LIMITS = {
-    "resume_analyzer": 1,
-    "jd_match": 1,
-    "converter": 1
+    "resume_analyzer": 3,
+    "jd_match": 3,
+    "converter": 3
 }
 
 CREDIT_COST = {
