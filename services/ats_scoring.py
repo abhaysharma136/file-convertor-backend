@@ -1,99 +1,221 @@
-def word_count(text: str) -> int:
-    return len(text.split())
+# ----------------------------
+# CONSTANTS
+# ----------------------------
 
-
-def score_sections(sections: dict):
-    score = 0
-    reasons = []
-
-    required_sections = ["skills", "experience", "education", "projects"]
-
-    for section in required_sections:
-        if section in sections and sections[section]:
-            score += 7
-        else:
-            reasons.append(f"Missing or weak '{section}' section")
-
-    score = min(score, 30)
-    return score, reasons
-
-COMMON_TECH_SKILLS = [
-    "python", "javascript", "react", "node", "django", "aws",
-    "typescript", "sql", "mongodb", "api", "docker"
+ACTION_VERBS = [
+    "developed", "designed", "led", "managed", "implemented",
+    "optimized", "increased", "reduced", "built", "created",
+    "launched", "delivered", "executed", "improved"
 ]
 
-def score_skills(sections: dict):
-    skills_text = sections.get("skills", "")
+WEAK_PHRASES = [
+    "responsible for",
+    "worked on",
+    "helped with",
+    "involved in",
+    "assisted in"
+]
+
+REQUIRED_SECTIONS = [
+    "skills",
+    "experience",
+    "education"
+]
+
+MAX_RAW_SCORE = 100
+
+
+# ----------------------------
+# SCORING FUNCTIONS
+# ----------------------------
+
+def score_structure(sections: dict):
     score = 0
-    reasons = []
+    issues = []
 
-    matched = [s for s in COMMON_TECH_SKILLS if s in skills_text]
+    for sec in REQUIRED_SECTIONS:
+        if sections.get(sec):
+            score += 6
+        else:
+            issues.append(f"Missing or weak '{sec}' section")
 
-    if len(matched) >= 8:
-        score = 25
-    elif len(matched) >= 5:
-        score = 18
-    elif len(matched) >= 3:
-        score = 10
+    if sections.get("projects"):
+        score += 2
+
+    return min(score, 20), issues
+
+
+def score_length(normalized_text: str):
+    wc = len(normalized_text.split())
+    issues = []
+
+    if 450 <= wc <= 800:
+        return 15, []
+    elif 350 <= wc < 450 or 800 < wc <= 950:
+        return 10, []
+    elif wc < 350:
+        issues.append("Resume is too short")
+        return 8, issues
     else:
-        reasons.append("Low technical skill coverage")
-        score = 5
+        issues.append("Resume is too long")
+        return 8, issues
 
-    return score, reasons
 
-def score_experience(sections: dict):
-    experience_text = sections.get("experience", "")
-    wc = word_count(experience_text)
-    reasons = []
+def score_experience_depth(sections: dict):
+    text = sections.get("experience", "")
+    wc = len(text.split())
+    issues = []
 
     if wc > 250:
-        return 25, []
+        return 20, []
     elif wc > 150:
         return 18, []
     elif wc > 80:
         return 10, []
     else:
-        reasons.append("Experience section is too short or vague")
-        return 5, reasons
+        issues.append("Experience section is too short or vague")
+        return 5, issues
 
-def score_length(normalized_text: str):
-    wc = word_count(normalized_text)
-    reasons = []
 
-    if 450 <= wc <= 800:
-        return 20, []
-    elif 350 <= wc < 450 or 800 < wc <= 950:
+def score_quantified_impact(normalized_text: str):
+    percent_count = normalized_text.count("%")
+    digit_count = sum(c.isdigit() for c in normalized_text)
+
+    if percent_count >= 4 or digit_count > 30:
         return 15, []
-    elif wc < 350:
-        reasons.append("Resume is too short")
-        return 8, reasons
+    elif percent_count >= 1:
+        return 10, []
     else:
-        reasons.append("Resume is too long")
-        return 8, reasons
+        return 6, ["Add measurable impact using %, numbers, metrics"]
 
 
-def calculate_ats_score(extracted_text: dict):
-    sections = extracted_text["sections"]
-    normalized_text = extracted_text["normalized_text"]
-
-    total_score = 0
+def score_skill_diversity(sections: dict):
+    text = sections.get("skills", "")
     issues = []
 
-    s1, r1 = score_sections(sections)
-    s2, r2 = score_skills(sections)
-    s3, r3 = score_experience(sections)
-    s4, r4 = score_length(normalized_text)
+    if not text:
+        return 5, ["Missing skills section"]
 
-    total_score = s1 + s2 + s3 + s4
-    issues.extend(r1 + r2 + r3 + r4)
+    keyword_count = text.count(",") + text.count("•")
+
+    if keyword_count > 20:
+        return 15, []
+    elif keyword_count > 12:
+        return 12, []
+    elif keyword_count > 6:
+        return 9, []
+    else:
+        return 6, ["Expand and structure your skills section better"]
+
+
+def score_clarity(normalized_text: str):
+    weak_hits = sum(normalized_text.count(p) for p in WEAK_PHRASES)
+    strong_hits = sum(normalized_text.count(v) for v in ACTION_VERBS)
+
+    if strong_hits >= 5 and weak_hits == 0:
+        return 15, []
+    elif strong_hits >= 3:
+        return 12, []
+    elif strong_hits >= 1:
+        return 9, []
+    else:
+        return 6, ["Use stronger action verbs to describe impact"]
+
+
+# ----------------------------
+# STRENGTH CLASSIFICATION
+# ----------------------------
+
+def determine_strength(score: int):
+    if score >= 85:
+        return "Strong"
+    elif score >= 70:
+        return "Good"
+    elif score >= 50:
+        return "Needs Improvement"
+    else:
+        return "Weak"
+
+
+# ----------------------------
+# OPTIMIZATION MODE (NEW)
+# ----------------------------
+
+def generate_optimization_tips(score, breakdown):
+    """
+    Only runs when score is already strong (>=85).
+    Adds section-specific refinements.
+    """
+    tips = []
+
+    if score < 85:
+        return tips  # Only optimize strong resumes
+
+    if breakdown["length"] < 15:
+        tips.append(
+            "Fine-tune resume length to fall within the optimal 450–800 word range for recruiter scanning efficiency."
+        )
+
+    if breakdown["experience_depth"] < 20:
+        tips.append(
+            "Deepen experience bullets with more technical context, tools used, or business impact."
+        )
+
+    if breakdown["impact"] < 15:
+        tips.append(
+            "Add more quantified achievements (%, scale, performance gains, revenue impact) to strengthen executive appeal."
+        )
+
+    if breakdown["skill_diversity"] < 15:
+        tips.append(
+            "Broaden your skills section to include architecture, leadership, or domain-specific capabilities."
+        )
+
+    if breakdown["clarity"] < 15:
+        tips.append(
+            "Strengthen action verbs and eliminate weak phrasing to improve leadership presence."
+        )
+
+    return tips
+
+
+# ----------------------------
+# MAIN ATS CALCULATION
+# ----------------------------
+
+def calculate_ats_score(extracted_text: dict):
+
+    sections = extracted_text.get("sections", {})
+    normalized_text = extracted_text.get("normalized_text", "")
+
+    issues = []
+
+    s1, r1 = score_structure(sections)
+    s2, r2 = score_length(normalized_text)
+    s3, r3 = score_experience_depth(sections)
+    s4, r4 = score_quantified_impact(normalized_text)
+    s5, r5 = score_skill_diversity(sections)
+    s6, r6 = score_clarity(normalized_text)
+
+    total_score = s1 + s2 + s3 + s4 + s5 + s6
+
+    issues.extend(r1 + r2 + r3 + r4 + r5 + r6)
+
+    breakdown = {
+        "structure": s1,
+        "length": s2,
+        "experience_depth": s3,
+        "impact": s4,
+        "skill_diversity": s5,
+        "clarity": s6
+    }
+
+    optimization_tips = generate_optimization_tips(total_score, breakdown)
 
     return {
         "ats_score": total_score,
+        "strength_level": determine_strength(total_score),
         "issues": issues,
-        "breakdown": {
-            "sections": s1,
-            "skills": s2,
-            "experience": s3,
-            "length": s4
-        }
+        "optimization_tips": optimization_tips,
+        "breakdown": breakdown
     }

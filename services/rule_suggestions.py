@@ -3,12 +3,12 @@ def generate_rule_based_suggestions(extracted_text, ats_result):
     rewritten_bullets = []
     missing_keywords = []
 
-    sections = extracted_text["sections"]
-    breakdown = ats_result["breakdown"]
-    score = ats_result["ats_score"]
+    sections = extracted_text.get("sections", {})
+    breakdown = ats_result.get("breakdown", {})
+    score = ats_result.get("ats_score", 0)
 
     # ----------------------------
-    # SCORE-BASED CONTEXT
+    # Determine Severity Context
     # ----------------------------
     if score < 50:
         base_severity = "critical"
@@ -18,82 +18,144 @@ def generate_rule_based_suggestions(extracted_text, ats_result):
         base_severity = "minor"
 
     # ----------------------------
-    # SECTION STRUCTURE
+    # 1️⃣ STRUCTURE (Max 20)
     # ----------------------------
-    if breakdown["sections"] < 30:
+    structure_score = breakdown.get("structure", 0)
+
+    if structure_score < 15:
         if not sections.get("skills"):
             suggestions.append({
-                "title": "Missing Technical Skills Section",
+                "title": "Missing Skills Section",
                 "description": (
-                    "Add a clear Technical Skills section listing relevant tools and technologies "
-                    "to improve ATS parsing and keyword matching."
+                    "Add a dedicated Skills section to improve ATS parsing and keyword recognition."
                 ),
                 "severity": "critical",
-                "category": "sections"
+                "category": "structure"
             })
 
-        if not sections.get("projects"):
+        if not sections.get("experience"):
             suggestions.append({
-                "title": "Projects Section Not Found",
+                "title": "Missing Experience Section",
                 "description": (
-                    "Include a Projects section to showcase hands-on experience and real-world implementations."
+                    "Include a clearly labeled Experience section to help recruiters quickly evaluate your background."
+                ),
+                "severity": "critical",
+                "category": "structure"
+            })
+
+        if not sections.get("education"):
+            suggestions.append({
+                "title": "Missing Education Section",
+                "description": (
+                    "Add an Education section to ensure completeness and ATS compatibility."
                 ),
                 "severity": "moderate",
-                "category": "sections"
+                "category": "structure"
             })
 
     # ----------------------------
-    # EXPERIENCE QUALITY
+    # 2️⃣ EXPERIENCE DEPTH (Max 20)
     # ----------------------------
-    if breakdown["experience"] < 20:
+    experience_score = breakdown.get("experience_depth", 0)
+
+    if experience_score < 12:
         suggestions.append({
-            "title": "Weak Experience Bullet Points",
+            "title": "Experience Section Needs More Depth",
             "description": (
-                "Rewrite experience bullets using strong action verbs and measurable impact "
-                "(e.g., performance gains, scale, users, revenue)."
+                "Expand your experience descriptions. Add more details about responsibilities, tools used, and outcomes."
             ),
             "severity": base_severity,
             "category": "experience"
         })
 
-        exp = sections.get("experience", "")
-        if exp:
+        exp_text = sections.get("experience", "")
+        if exp_text:
             rewritten_bullets.append(
-                "Led end-to-end development of scalable features, improving system performance and reliability."
+                "Led cross-functional initiatives to deliver measurable business impact and improve operational efficiency."
             )
 
     # ----------------------------
-    # RESUME LENGTH
+    # 3️⃣ IMPACT & METRICS (Max 15)
     # ----------------------------
-    if breakdown["length"] < 15:
+    impact_score = breakdown.get("impact", 0)
+
+    if impact_score < 10:
         suggestions.append({
-            "title": "Resume Length Is Suboptimal",
+            "title": "Add Measurable Impact",
             "description": (
-                "Expand resume content slightly to better highlight responsibilities, achievements, and impact."
+                "Include quantifiable achievements (%, revenue, users, performance improvements, cost reduction). "
+                "Metrics significantly improve ATS and recruiter perception."
+            ),
+            "severity": base_severity,
+            "category": "impact"
+        })
+
+    # ----------------------------
+    # 4️⃣ SKILL DIVERSITY (Max 15)
+    # ----------------------------
+    skill_score = breakdown.get("skill_diversity", 0)
+
+    if skill_score < 10:
+        suggestions.append({
+            "title": "Expand Skills Diversity",
+            "description": (
+                "Broaden and structure your skills section to reflect tools, methodologies, and domain expertise clearly."
+            ),
+            "severity": "moderate",
+            "category": "skills"
+        })
+
+    # ----------------------------
+    # 5️⃣ CLARITY & ACTION VERBS (Max 15)
+    # ----------------------------
+    clarity_score = breakdown.get("clarity", 0)
+
+    if clarity_score < 10:
+        suggestions.append({
+            "title": "Use Stronger Action Verbs",
+            "description": (
+                "Replace weak phrases like 'responsible for' with strong action verbs such as "
+                "'led', 'developed', 'optimized', or 'implemented'."
+            ),
+            "severity": "moderate",
+            "category": "clarity"
+        })
+
+    # ----------------------------
+    # 6️⃣ LENGTH (Max 15)
+    # ----------------------------
+    length_score = breakdown.get("length", 0)
+
+    if length_score < 10:
+        suggestions.append({
+            "title": "Resume Length Optimization",
+            "description": (
+                "Adjust resume length to maintain 1–2 pages. Ensure concise yet complete representation of experience."
             ),
             "severity": "minor",
             "category": "length"
         })
 
     # ----------------------------
-    # SKILL KEYWORDS
+    # OPTIONAL: Generic Missing Keywords Suggestion
     # ----------------------------
-    COMMON_TECH_SKILLS = [
-        "docker", "kubernetes", "microservices",
-        "rest api", "ci/cd", "cloud", "system design"
+    normalized_text = extracted_text.get("normalized_text", "").lower()
+
+    GENERIC_BUSINESS_TERMS = [
+        "leadership", "collaboration", "strategy",
+        "analysis", "optimization", "performance",
+        "cross-functional"
     ]
-
-    skills_text = sections.get("skills", "").lower()
-
-    for skill in COMMON_TECH_SKILLS:
-        if skill not in skills_text:
-            missing_keywords.append(skill)
+    if score < 70:
+        for term in GENERIC_BUSINESS_TERMS:
+            if term not in normalized_text:
+                missing_keywords.append(term)
 
     # ----------------------------
-    # RETURN STRUCTURED OUTPUT
+    # Final Structured Return
     # ----------------------------
     return {
-        "suggestions": suggestions[:5],
+        "suggestions": suggestions[:6],
         "rewritten_bullets": rewritten_bullets[:2],
-        "missing_keywords": missing_keywords[:5]
+        "missing_keywords": missing_keywords[:6]
     }
