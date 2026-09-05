@@ -1,15 +1,30 @@
-def generate_rule_based_suggestions(extracted_text, ats_result):
+def generate_rule_based_suggestions(
+    extracted_text,
+    ats_result
+):
     suggestions = []
     rewritten_bullets = []
     missing_keywords = []
 
-    sections = extracted_text.get("sections", {})
-    breakdown = ats_result.get("breakdown", {})
-    score = ats_result.get("ats_score", 0)
+    sections = extracted_text.get(
+        "sections",
+        {}
+    )
 
-    # ----------------------------
-    # Determine Severity Context
-    # ----------------------------
+    breakdown = ats_result.get(
+        "breakdown",
+        {}
+    )
+
+    score = ats_result.get(
+        "ats_score",
+        0
+    )
+
+    # -----------------------------------------------------
+    # Severity
+    # -----------------------------------------------------
+
     if score < 50:
         base_severity = "critical"
     elif score < 70:
@@ -17,17 +32,23 @@ def generate_rule_based_suggestions(extracted_text, ats_result):
     else:
         base_severity = "minor"
 
-    # ----------------------------
-    # 1️⃣ STRUCTURE (Max 20)
-    # ----------------------------
-    structure_score = breakdown.get("structure", 0)
+    # -----------------------------------------------------
+    # STRUCTURE
+    # -----------------------------------------------------
+
+    structure_score = breakdown.get(
+        "structure",
+        0
+    )
 
     if structure_score < 15:
+
         if not sections.get("skills"):
             suggestions.append({
-                "title": "Missing Skills Section",
+                "title": "Add a Skills Section",
                 "description": (
-                    "Add a dedicated Skills section to improve ATS parsing and keyword recognition."
+                    "Add a dedicated Skills section containing "
+                    "relevant technologies, tools, and methodologies."
                 ),
                 "severity": "critical",
                 "category": "structure"
@@ -35,9 +56,10 @@ def generate_rule_based_suggestions(extracted_text, ats_result):
 
         if not sections.get("experience"):
             suggestions.append({
-                "title": "Missing Experience Section",
+                "title": "Add an Experience Section",
                 "description": (
-                    "Include a clearly labeled Experience section to help recruiters quickly evaluate your background."
+                    "Include a clearly labeled Experience section "
+                    "to make your professional background easier to parse."
                 ),
                 "severity": "critical",
                 "category": "structure"
@@ -45,117 +67,135 @@ def generate_rule_based_suggestions(extracted_text, ats_result):
 
         if not sections.get("education"):
             suggestions.append({
-                "title": "Missing Education Section",
+                "title": "Add an Education Section",
                 "description": (
-                    "Add an Education section to ensure completeness and ATS compatibility."
+                    "Include your educational background in a clearly "
+                    "labeled section."
                 ),
                 "severity": "moderate",
                 "category": "structure"
             })
 
-    # ----------------------------
-    # 2️⃣ EXPERIENCE DEPTH (Max 20)
-    # ----------------------------
-    experience_score = breakdown.get("experience_depth", 0)
+    # -----------------------------------------------------
+    # EXPERIENCE QUALITY
+    # -----------------------------------------------------
+
+    experience_score = breakdown.get(
+        "experience_quality",
+        0
+    )
 
     if experience_score < 12:
+
         suggestions.append({
-            "title": "Experience Section Needs More Depth",
+            "title": "Strengthen Experience Bullets",
             "description": (
-                "Expand your experience descriptions. Add more details about responsibilities, tools used, and outcomes."
+                "Make experience bullets more specific by describing "
+                "what you built or changed, the technologies involved, "
+                "and the resulting outcome."
             ),
             "severity": base_severity,
             "category": "experience"
         })
 
-        exp_text = sections.get("experience", "")
-        if exp_text:
+        if sections.get("experience"):
             rewritten_bullets.append(
-                "Led cross-functional initiatives to deliver measurable business impact and improve operational efficiency."
+                "Developed and improved technical solutions to "
+                "deliver measurable business and operational outcomes."
             )
 
-    # ----------------------------
-    # 3️⃣ IMPACT & METRICS (Max 15)
-    # ----------------------------
-    impact_score = breakdown.get("impact", 0)
+    # -----------------------------------------------------
+    # IMPACT
+    # -----------------------------------------------------
+
+    impact_score = breakdown.get(
+        "impact",
+        0
+    )
 
     if impact_score < 10:
+
         suggestions.append({
             "title": "Add Measurable Impact",
             "description": (
-                "Include quantifiable achievements (%, revenue, users, performance improvements, cost reduction). "
-                "Metrics significantly improve ATS and recruiter perception."
+                "Where possible, quantify your achievements using "
+                "percentages, users, revenue, response times, scale, "
+                "cost savings, or other measurable results."
             ),
             "severity": base_severity,
             "category": "impact"
         })
 
-    # ----------------------------
-    # 4️⃣ SKILL DIVERSITY (Max 15)
-    # ----------------------------
-    skill_score = breakdown.get("skill_diversity", 0)
+    # -----------------------------------------------------
+    # SKILLS
+    # -----------------------------------------------------
+
+    skill_score = breakdown.get("skills", 0)
 
     if skill_score < 10:
         suggestions.append({
-            "title": "Expand Skills Diversity",
+            "title": "Strengthen Your Skills Section",
             "description": (
-                "Broaden and structure your skills section to reflect tools, methodologies, and domain expertise clearly."
+                "Add relevant technologies, tools, frameworks, databases, "
+                "cloud platforms, and methodologies."
             ),
             "severity": "moderate",
             "category": "skills"
         })
+        # -----------------------------------------------------
+        # CLARITY
+        # -----------------------------------------------------
 
-    # ----------------------------
-    # 5️⃣ CLARITY & ACTION VERBS (Max 15)
-    # ----------------------------
-    clarity_score = breakdown.get("clarity", 0)
+        clarity_score = breakdown.get(
+            "clarity",
+            0
+        )
 
-    if clarity_score < 10:
-        suggestions.append({
-            "title": "Use Stronger Action Verbs",
-            "description": (
-                "Replace weak phrases like 'responsible for' with strong action verbs such as "
-                "'led', 'developed', 'optimized', or 'implemented'."
-            ),
-            "severity": "moderate",
-            "category": "clarity"
-        })
+        if clarity_score < 10:
 
-    # ----------------------------
-    # 6️⃣ LENGTH (Max 15)
-    # ----------------------------
-    length_score = breakdown.get("length", 0)
+            suggestions.append({
+                "title": "Use Stronger Action Language",
+                "description": (
+                    "Replace phrases such as 'responsible for' or "
+                    "'worked on' with specific action verbs such as "
+                    "'developed', 'implemented', 'optimized', or 'designed'."
+                ),
+                "severity": "moderate",
+                "category": "clarity"
+            })
 
-    if length_score < 10:
-        suggestions.append({
-            "title": "Resume Length Optimization",
-            "description": (
-                "Adjust resume length to maintain 1–2 pages. Ensure concise yet complete representation of experience."
-            ),
-            "severity": "minor",
-            "category": "length"
-        })
+        # -----------------------------------------------------
+        # LENGTH
+        # -----------------------------------------------------
 
-    # ----------------------------
-    # OPTIONAL: Generic Missing Keywords Suggestion
-    # ----------------------------
-    normalized_text = extracted_text.get("normalized_text", "").lower()
+        length_score = breakdown.get(
+            "length",
+            0
+        )
 
-    GENERIC_BUSINESS_TERMS = [
-        "leadership", "collaboration", "strategy",
-        "analysis", "optimization", "performance",
-        "cross-functional"
-    ]
-    if score < 70:
-        for term in GENERIC_BUSINESS_TERMS:
-            if term not in normalized_text:
-                missing_keywords.append(term)
+        if length_score < 10:
 
-    # ----------------------------
-    # Final Structured Return
-    # ----------------------------
-    return {
-        "suggestions": suggestions[:6],
-        "rewritten_bullets": rewritten_bullets[:2],
-        "missing_keywords": missing_keywords[:6]
-    }
+            suggestions.append({
+                "title": "Review Resume Length",
+                "description": (
+                    "Your resume appears either too short to fully "
+                    "demonstrate your experience or unnecessarily long. "
+                    "Focus on concise, relevant content."
+                ),
+                "severity": "minor",
+                "category": "length"
+            })
+
+        # -----------------------------------------------------
+        # IMPORTANT:
+        # Do NOT generate generic missing keywords here.
+        #
+        # Without a Job Description, Applyra cannot know which
+        # keywords are actually missing for a particular role.
+        # -----------------------------------------------------
+
+        return {
+            "suggestions": suggestions[:6],
+            "rewritten_bullets": rewritten_bullets[:2],
+            "missing_keywords": missing_keywords[:6]
+        }

@@ -54,11 +54,11 @@ def authorize_usage(ip_hash: str, service: str, *, use_credit: bool, allow_credi
 
     # 🟢 USER WANTS FREE
     if remaining_free > 0:
-        consume_free(ip_hash, service)
+        # consume_free(ip_hash, service)
         return {
             "allowed": True,
             "mode": "free",
-            "remaining_free": remaining_free - 1
+            "remaining_free": remaining_free - 0
         }
 
     # 🔁 Optional fallback to credit

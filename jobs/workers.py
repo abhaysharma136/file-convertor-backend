@@ -1,9 +1,15 @@
 from jobs.store import jobs
 from services.ats_scoring import calculate_ats_score
-from services.resume_parser import extract_resume_text,split_into_sections,normalize_text, normalize_jd_text
+from services.resume_parser import (
+    extract_resume_text,
+    split_into_sections,
+    normalize_text,
+    normalize_jd_text,
+    extract_resume_metadata,
+)
 from services.ai_suggestions import generate_ai_suggestions
 from services.rule_suggestions import generate_rule_based_suggestions
-from services.jd_matching import extract_jd_keywords, calculate_jd_match
+from services.jd_matching import calculate_jd_match_free
 from services.conversion import convert_document
 from PIL import Image
 import time
@@ -13,6 +19,8 @@ import json
 from core.config import AI_ENABLED, MAX_AI_TOKENS_PER_JOB,APPLYRA_AI_GLOBAL_ENABLED
 from core.ai_budget import can_use_ai,register_ai_call
 from services.credits import consume_credit
+from core.database import SessionLocal
+from utils.analytics import track_event
 def run_resume_analysis(job_id: str):
     start_time = time.time()
 
@@ -32,13 +40,18 @@ def run_resume_analysis(job_id: str):
 
         # 1️⃣ Extract text
         raw_text = extract_resume_text(job["input_path"])
+
         sections = split_into_sections(raw_text)
+
         normalized_text = normalize_text(raw_text)
+
+        metadata = extract_resume_metadata(raw_text)
 
         extracted = {
             "raw_text": raw_text,
             "normalized_text": normalized_text,
-            "sections": sections
+            "sections": sections,
+            "metadata": metadata,
         }
 
         jobs[job_id]["extracted_text"] = extracted
@@ -104,7 +117,16 @@ def run_resume_analysis(job_id: str):
         jobs[job_id]["result"]["suggestion_source"] = suggestion_source
 
         jobs[job_id]["status"] = "completed"
+        db = SessionLocal()
 
+        track_event(
+            db=db,
+            event_name="resume_analysis_completed",
+            feature="resume_analyzer",
+            source="resume_page"
+        )
+
+        db.close()
         log_event({
             "event": "job_completed",
             "job_id": job_id,
@@ -117,6 +139,17 @@ def run_resume_analysis(job_id: str):
         jobs[job_id]["status"] = "failed"
         jobs[job_id]["error"] = str(e)
 
+        db = SessionLocal()
+
+        track_event(
+            db=db,
+            event_name="resume_analysis_failed",
+            feature="resume_analyzer",
+            source="resume_page"
+        )
+
+        db.close()
+
         log_event({
             "event": "job_failed",
             "job_id": job_id,
@@ -128,7 +161,7 @@ def run_resume_jd_match(job_id: str):
     start_time = time.time()
     job = jobs[job_id]
 
-    usage_mode = job.get("usage_mode", "free")  # free | credit
+    usage_mode = job.get("usage_mode")  # free | credit
     ip_hash = job.get("ip_hash")
 
     log_event({
@@ -143,11 +176,13 @@ def run_resume_jd_match(job_id: str):
 
         # 1️⃣ Extract resume text
         raw_text = extract_resume_text(job["input_path"])
+        sections = split_into_sections(raw_text)
         normalized_text = normalize_text(raw_text)
 
         extracted = {
             "raw_text": raw_text,
             "normalized_text": normalized_text,
+            "sections": sections
         }
 
         jobs[job_id]["extracted_text"] = extracted
@@ -155,20 +190,9 @@ def run_resume_jd_match(job_id: str):
         # 2️⃣ Normalize JD
         jd_text = normalize_jd_text(job["jd_text"])
 
-        # 3️⃣ Keyword extraction
-        jd_keywords = extract_jd_keywords(jd_text)
-
-        # 4️⃣ Deterministic match scoring (ALWAYS RUNS)
-        score, matched, missing = calculate_jd_match(
-            normalized_text,
-            jd_keywords
-        )
-
-        match_result = {
-            "match_score": score,
-            "matched_keywords": matched,
-            "missing_keywords": missing,
-        }
+        # 3️⃣  Deterministic match scoring (ALWAYS RUNS)
+        result = calculate_jd_match_free(sections, jd_text)
+        match_result = result
 
         suggestion_source = "rules"
 
@@ -227,7 +251,13 @@ def run_resume_jd_match(job_id: str):
                     "service": "jd_match",
                     "error": str(ai_error)
                 })
-
+        else:
+            # Always include empty suggestion structure
+            match_result["ai_suggestions"] = {
+                "suggestions": [],
+                "rewritten_bullets": [],
+                "missing_keywords": []
+            }
 
         # 7️⃣ Save result
         match_result["suggestion_source"] = suggestion_source
@@ -240,7 +270,7 @@ def run_resume_jd_match(job_id: str):
             "job_id": job_id,
             "job_type": "resume_jd_match",
             "duration_ms": int((time.time() - start_time) * 1000),
-            "match_score": score,
+            # "match_score": score,
             "suggestion_source": suggestion_source
         })
 

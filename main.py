@@ -7,6 +7,9 @@ from api.match import router as match_router
 from api.status import router as status_router
 from api.usage import router as usage_router
 from api.admin import router as admin_router
+from api.waitlist import router as waitlist_router
+from api.analytics import router as analytics_router
+
 from core.middleware import logging_middleware
 import os
 from datetime import datetime
@@ -30,7 +33,8 @@ app.include_router(match_router)
 app.include_router(status_router)
 app.include_router(usage_router)
 app.include_router(admin_router)
-
+app.include_router(waitlist_router)
+app.include_router(analytics_router)
 @app.get("/health")
 def health_check():
     return {
