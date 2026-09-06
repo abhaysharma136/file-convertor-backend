@@ -6,52 +6,38 @@ from core.config import UPLOAD_DIR
 import os
 from jobs.workers import run_resume_jd_match
 from services.rate_limiter import check_rate_limit
-from services.credits import authorize_usage,get_credits,CREDIT_COST,get_remaining_free
+from services.credits import authorize_usage,get_credits,CREDIT_COST,get_remaining_free,consume_credit
 from utils.security import hash_ip
+from core.logger import log_event
 
 router = APIRouter(prefix="/jd/match", tags=["Match"])
 @router.post("")
 async def match_resume(
-    request:Request,
+    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     job_description: str = Form(...),
-    useCredit: bool = Form(False),
 ):
     ip_hash = hash_ip(request.client.host)
-    # ---------- Authorization ----------
-    if useCredit:
-        # User explicitly wants AI
-        if get_credits(ip_hash) < CREDIT_COST["jd_match"]:
-            raise HTTPException(
-                status_code=402,
-                detail="Not enough credits. Please upgrade."
-            )
 
-        auth = {
-            "allowed": True,
-            "mode": "credit",
-            "remaining_free": get_remaining_free(ip_hash, "jd_match")
-        }
-    else:
-        auth = authorize_usage(ip_hash, "jd_match", use_credit=useCredit, allow_credit_fallback=False)
-    
+    # 🔒 PREMIUM GATE: Credit Required
+    if not consume_credit(ip_hash, "jd_match"):
+        raise HTTPException(
+            status_code=402,
+            detail="JD Match requires 1 credit. Please purchase credits."
+        )
 
-        if not auth["allowed"]:
-            raise HTTPException(
-                status_code=429,
-                detail="Daily limit reached. Upgrade to continue."
-            )
-        
+    # ✅ Credit successfully reserved
     job_id = create_job("resume_jd_match")
+
     jobs[job_id]["jd_text"] = job_description
-    jobs[job_id]["usage_mode"] = auth["mode"]      # free | credit
-    jobs[job_id]["remaining_free"] = auth["remaining_free"]
+    jobs[job_id]["usage_mode"] = "credit"
     jobs[job_id]["ip_hash"] = ip_hash
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     input_path = os.path.join(
-        UPLOAD_DIR, f"{job_id}_{timestamp}_{file.filename}"
+        UPLOAD_DIR,
+        f"{job_id}_{timestamp}_{file.filename}"
     )
 
     with open(input_path, "wb") as f:
@@ -61,10 +47,17 @@ async def match_resume(
 
     background_tasks.add_task(run_resume_jd_match, job_id)
 
+    log_event({
+        "event": "job_created",
+        "job_id": job_id,
+        "job_type": "resume_jd_match",
+        "usage_mode": "credit"
+    })
+
     return {
         "job_id": job_id,
         "status": "pending",
-        "usage":auth
+        "credits_remaining": get_credits(ip_hash)
     }
 
 
