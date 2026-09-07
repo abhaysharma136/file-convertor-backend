@@ -13,10 +13,13 @@ from api.analytics import router as analytics_router
 from core.middleware import logging_middleware
 import os
 from datetime import datetime
-
+from core.database import Base, engine
+from models.analytics_event import AnalyticsEvent
+from models.waitlist import WaitlistUser
 app = FastAPI()
 @app.on_event("startup")
 def start_background_workers():
+    Base.metadata.create_all(bind=engine)
     start_cleanup_worker()
 app.add_middleware(
     CORSMiddleware,
