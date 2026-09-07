@@ -31,6 +31,23 @@ class AnalyticsEvent(Base):
         String,
         nullable=True
     )
+    session_id = Column(String, nullable=True, index=True)
+
+    utm_source = Column(
+        String,
+        nullable=True
+    )
+
+    utm_medium = Column(
+        String,
+        nullable=True
+    )
+
+    utm_campaign = Column(
+        String,
+        nullable=True
+    )
+
 
     created_at = Column(
         DateTime,

@@ -88,6 +88,17 @@ async def analyze_resume(
 
     job_id = create_job("resume_analysis")
 
+    session_id = request.headers.get("X-Session-ID")
+    jobs[job_id]["session_id"] = session_id
+
+    utm_source = request.headers.get("X-UTM-Source")
+    utm_medium = request.headers.get("X-UTM-Medium")
+    utm_campaign = request.headers.get("X-UTM-Campaign")
+
+    jobs[job_id]["utm_source"] = utm_source
+    jobs[job_id]["utm_medium"] = utm_medium
+    jobs[job_id]["utm_campaign"] = utm_campaign
+
     # ---------------------------------------------------------
     # Analytics
     # ---------------------------------------------------------
@@ -99,7 +110,11 @@ async def analyze_resume(
             db=db,
             event_name="resume_analysis_started",
             feature="resume_analyzer",
-            source="resume_page"
+            source="resume_page",
+            session_id=session_id,
+            utm_source=utm_source,
+            utm_medium=utm_medium,
+            utm_campaign=utm_campaign,
         )
     finally:
         db.close()

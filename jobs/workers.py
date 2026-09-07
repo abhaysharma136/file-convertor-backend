@@ -28,12 +28,16 @@ def run_resume_analysis(job_id: str):
         job = jobs[job_id]
         usage_mode = job.get("usage_mode", "free")  # free | credit
         ip_hash = job.get("ip_hash")
+        session_id = job.get("session_id")
+        utm_source = job.get("utm_source")
+        utm_medium = job.get("utm_medium")
+        utm_campaign = job.get("utm_campaign")
 
         log_event({
             "event": "job_started",
             "job_id": job_id,
             "job_type": "resume_analysis",
-            "usage_mode": usage_mode
+            "usage_mode": usage_mode,
         })
 
         jobs[job_id]["status"] = "processing"
@@ -123,7 +127,11 @@ def run_resume_analysis(job_id: str):
             db=db,
             event_name="resume_analysis_completed",
             feature="resume_analyzer",
-            source="resume_page"
+            source="resume_page",
+            session_id=session_id,
+            utm_source=utm_source,
+            utm_medium=utm_medium,
+            utm_campaign=utm_campaign,
         )
 
         db.close()
@@ -145,7 +153,11 @@ def run_resume_analysis(job_id: str):
             db=db,
             event_name="resume_analysis_failed",
             feature="resume_analyzer",
-            source="resume_page"
+            source="resume_page",
+            session_id=session_id,
+            utm_source=utm_source,
+            utm_medium=utm_medium,
+            utm_campaign=utm_campaign,
         )
 
         db.close()
